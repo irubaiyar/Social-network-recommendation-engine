@@ -1,0 +1,400 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1561\cocoasubrtf400
+{\fonttbl\f0\fswiss\fcharset0 ArialMT;}
+{\colortbl;\red255\green255\blue255;\red34\green34\blue34;}
+{\*\expandedcolortbl;;\csgenericrgb\c13333\c13333\c13333;}
+\margl1440\margr1440\vieww25400\viewh15520\viewkind0
+\deftab720
+\pard\pardeftab720\ri0\sl480\slmult1\sa160\qj\partightenfactor0
+
+\f0\fs24 \cf2 #Part B\
+\pard\pardeftab720\ri0\sl259\slmult1\sa160\partightenfactor0
+
+\fs22 \cf0 #This code reads that raw dataset provided by client, calculates the jaccard index for #each pair of users based on their followings and interests and output two csv files #jaccard_follows.csv and jaccard_interest.csv\
+import numpy as np\
+import csv\
+from collections import Counter\
+import pandas as pd\
+import pprint as pp\
+import random as rand\
+\
+follows = []\
+with open('follows.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        follows.append(row)\
+followsTitle = follows[0]\
+follows=follows[1:]\
+headers =['follwer_id','followee_id']\
+followsPD=pd.DataFrame(follows, columns=headers)\
+\
+interests = []\
+with open('interests.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        interests.append(row)\
+interestsTitle = interests[0]\
+interests=interests[1:]\
+headers =['user_id','category']\
+interestsPD=pd.DataFrame(interests, columns=headers)\
+\
+user1 = [int(item[0]) for item in follows]\
+user2 = [int(item[1]) for item in follows]\
+user3 = [int(item[0]) for item in interests]\
+\
+userlist = list(set(user1+user2+user3))\
+userlist=sorted(userlist)\
+\
+\
+shape=len(userlist)\
+\
+interestsByUser=\{\}\
+\
+for row in interests:\
+    if row[0] in interestsByUser.keys():\
+        lists = interestsByUser[row[0]]\
+        lists.append(row[1])\
+        interestsByUser[row[0]] = lists\
+    else:\
+        interestsByUser[row[0]] = [row[1]]\
+        \
+cooccurence_matrix = np.matrix(np.zeros(shape=(shape, shape)), float)\
+a = set(interestsByUser[str(userI)])\
+a\
+i=0\
+for userI in userlist:\
+    if str(userI) in interestsByUser.keys():\
+        j = 0\
+        for userJ in userlist:\
+            if str(userJ) in interestsByUser.keys():\
+                userIInterests = set(interestsByUser[str(userI)])\
+                userJInterests = set(interestsByUser[str(userJ)])\
+                jaccardScore=float(len(userIInterests.intersection(userJInterests)))/float(len(userIInterests.union(userJInterests)))\
+                cooccurence_matrix[i,j]=jaccardScore\
+            j+=1\
+    i+=1\
+    \
+index = [key for key in userlist]\
+columns=index\
+\
+cooccurence_pandas=pd.DataFrame(cooccurence_matrix,index=index, columns=columns)\
+cooccurence_pandas.to_csv('jaccard_interest.csv')\
+\
+following=\{\}\
+\
+for row in follows:\
+    if row[0] in following.keys():\
+        lists = following[row[0]]\
+        lists.append(row[1])\
+        following[row[0]] = lists\
+    else:\
+        following[row[0]] = [row[1]]\
+        \
+\
+cooccurence_matrix_follow = np.matrix(np.zeros(shape=(shape, shape)), float)\
+\
+i=0\
+for userI in userlist:\
+    userI = str(userI)\
+    if userI in following.keys():\
+        j = 0\
+        for userJ in userlist:\
+            userJ = str(userJ)\
+            if userJ in following.keys():\
+                userIfollows = set(following[userI])\
+                userJfollows = set(following[userJ])\
+                jaccardScore_follow=float(len(userIfollows.intersection(userJfollows)))/float(len(userIfollows.union(userJfollows)))\
+                cooccurence_matrix_follow[i,j]=jaccardScore_follow\
+            j+=1\
+    i+=1\
+\
+cooccurence_pandas_follow=pd.DataFrame(cooccurence_matrix_follow,index=index, columns=columns)\
+cooccurence_pandas_follow.to_csv('jaccard_follows.csv')\
+\
+totalUsers=len(set(interestsPD['user_id']))\
+\
+userSet=set(interestsPD['user_id'])\
+sampleUsers= rand.sample(userSet,100)\
+predictions=\{\}\
+for user in sampleUsers:\
+    row=pd.DataFrame(cooccurence_pandas.loc[[user]],columns=columns)\
+    sortedRow=row.iloc[:, np.argsort(row.loc[user])[::-1]]\
+    predictions[user]=sortedRow.columns[1]\
+\page \
+#This code samples user pairs for classfier training. To better train the model, we #oversampled the data to 50% following and 50% non-following and output it to\
+#a csv file called balancedSample.csv\
+import numpy as np\
+import csv\
+from collections import Counter\
+import pandas as pd\
+import pprint as pp\
+import random as rand\
+\
+\
+follows = []\
+with open('follows.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        follows.append(row)\
+followsTitle = follows[0]\
+follows=follows[1:]\
+headers1 =['follower_id','followee_id']\
+followsPD=pd.DataFrame(follows, columns=headers1)\
+\
+interests = []\
+with open('interests.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        interests.append(row)\
+interestsTitle = interests[0]\
+interests=interests[1:]\
+headers =['user_id','category']\
+interestsPD=pd.DataFrame(interests, columns=headers)\
+\
+userSet=list(set(interestsPD['user_id']))\
+userBig=userSet*17\
+followingSet=set(followsPD['follower_id'])\
+followeeSet=set(followsPD['followee_id'])\
+user1=rand.sample(userBig, len(userBig))\
+user2=rand.sample(userBig, len(userBig))\
+randomPairs=[]\
+for i in range(len(user1)):\
+    row=[]\
+    row.append(user1[i])\
+    row.append(user2[i])\
+    randomPairs.append(row)\
+\
+print(randomPairs)\
+\
+zeros=[]\
+ones=[]\
+for i in range(len(randomPairs)):\
+    bothSame=0\
+    for j in range(len(follows)):\
+        if randomPairs[i][0]==follows[j][0] and randomPairs[i][1]==follows[i][1]:\
+            bothSame+=1\
+            print('same: ',randomPairs[i],follows[j])\
+        else:\
+            print('not same: ', randomPairs[i], follows[j])\
+    if bothSame<1:\
+        zeros.append(randomPairs[i])\
+    else:\
+        ones.append(randomPairs[i])\
+\
+zerosPD=pd.DataFrame(zeros,columns=headers1)\
+zerosPD.to_csv('zeros.csv')\
+\
+zeros0=[]\
+for row in zeros:\
+    row.append(0)\
+    zeros0.append(row)\
+\
+follows1=[]\
+for row in follows:\
+    row.append(1)\
+    follows1.append(row)\
+\
+headers2=headers1+['Target']   \
+balancedSample=zeros0+rand.sample(follows1,len(zeros0))\
+balancedSamplePD=pd.DataFrame(balancedSample,columns=headers2)\
+balancedSamplePD.to_csv('balancedSample.csv')\
+\page \
+#This code outputs dictionaries to show which user is following which user for future #query. It also generate a list of most popular users in the network\
+import numpy as np\
+import csv\
+from collections import Counter\
+import pandas as pd\
+import pprint as pp\
+import random as rand\
+import operator\
+import statistics\
+from operator import itemgetter\
+\
+follows = []\
+with open('follows.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        follows.append(row)\
+followsTitle = follows[0]\
+follows=follows[1:]\
+headersFoll =['follwer_id','followee_id']\
+followsPD=pd.DataFrame(follows, columns=headersFoll)\
+\
+interests = []\
+with open('interests.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        interests.append(row)\
+interestsTitle = interests[0]\
+interests=interests[1:]\
+headersCat =['user_id','category']\
+interestsPD=pd.DataFrame(interests, columns=headersCat)\
+\
+def aggregateByUser(table):\
+    interestsByUser=\{\}\
+    for row in table:\
+        if row[0] in interestsByUser.keys():\
+            lists = interestsByUser[row[0]]\
+            lists.append(row[1])\
+            interestsByUser[row[0]] = lists\
+            #print(interestsByUser[row[0]])\
+        else:\
+            interestsByUser[row[0]] = [row[1]]\
+            #print(interestsByUser[row[0]])\
+    return interestsByUser\
+\
+#these are the dictionaries that you can plug the userID into!\
+interestsByUser=aggregateByUser(interests)\
+followeesByUser=aggregateByUser(follows)\
+\
+totalUsers=len(set(interestsPD['user_id']))\
+userSet=set(interestsPD['user_id'])\
+\
+followers=\{\}\
+for row in follows:\
+    if row[1] in followers.keys():\
+        lists = followers[row[1]]\
+        lists.append(row[0])\
+        followers[row[1]] = lists\
+    else:\
+        followers[row[1]] = [row[0]]\
+\
+count=[]\
+\
+for key in followers.keys():\
+    count.append([len(followers[key]),key])\
+\
+sorted(count,reverse=True)\
+count[0:5]\
+countollowers=\{\}\
+for row in follows:\
+    if row[1] in followers.keys():\
+        lists = followers[row[1]]\
+        lists.append(row[0])\
+        followers[row[1]] = lists\
+    else:\
+        followers[row[1]] = [row[0]]\
+\
+count=[]\
+\
+for key in followers.keys():\
+    count.append([len(followers[key]),key])\
+\
+count=sorted(count, reverse=True, key=itemgetter(0))\
+celebrity=count[0:5]\
+\page \
+#This code reads the data of jaccard index on followings and interest as \
+#well as the sampled user pairs to train the classifer. And then we use the\
+#classifier to predict 5 users for a target that he will most likely to follow\
+#based on the probability produced by classfier. We also set a threshold of 53%\
+#if the probability of the recommendation is lower than the threshold, the \
+#recommendation will not be made, and will recommmend the target user the most #porpular user (i.e those who have most followers) instead\
+import numpy as np\
+import csv\
+from collections import Counter\
+import pandas as pd\
+import pprint as pp\
+import random as rand\
+from sklearn import linear_model\
+from sklearn.model_selection import train_test_split\
+from sklearn.neural_network import MLPClassifier\
+from sklearn import svm\
+\
+#read jaccard index for follwings and convert it to a dictionary\
+jac_follow = []\
+with open('jaccard_follows.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        jac_follow.append(row)\
+headers1 = jac_follow[0][1:]\
+jac_follow=jac_follow[1:]\
+\
+jacbyfollow=\{\}\
+for row in jac_follow:\
+    dict=\{\}\
+    for i in range(len(headers1)):\
+        if headers1[i] != row[0]:\
+            dict[headers1[i]]=float(row[i+1])\
+    jacbyfollow[row[0]]=dict\
+    \
+#read jaccard index for interests and convert it to a dictionary\
+jac_interest = []\
+with open('jaccard_interest.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        jac_interest.append(row)\
+headers2 = jac_interest[0][1:]\
+jac_interest=jac_interest[1:]\
+\
+jacbyinterest=\{\}\
+\
+for row in jac_interest:\
+    dict=\{\}\
+    for i in range(len(headers2)):\
+         if headers2[i] != row[0]:\
+            dict[headers1[i]]=float(row[i+1])\
+    jacbyinterest[row[0]]=dict\
+    \
+#read dataset for traing model\
+pairs = []\
+with open('balancedSample.csv','r') as csvfile:\
+    reader = csv.reader(csvfile, delimiter=',')\
+    for row in reader:\
+        pairs.append(row)\
+pairs=pairs[1:]\
+data = []\
+for row in pairs:\
+    row.append(jacbyfollow[row[1]][row[2]])\
+    row.append(jacbyinterest[row[1]][row[2]])\
+    data.append(row)\
+\
+X = [[item[4],item[5]] for item in data]\
+Y = [int(item[3]) for item in data]\
+X_train, X_test, Y_train, Y_test = train_test_split(X,Y,stratify=Y, test_size=0.2)\
+\
+#logistic regression\
+clf_lr = linear_model.LogisticRegression()\
+clf_lr.fit(X_train, Y_train)\
+print (clf_lr.score(X_test, Y_test))\
+\
+#neural network\
+clf_nn=MLPClassifier()\
+clf_nn.fit(X_train, Y_train)\
+print (clf_nn.score(X_test, Y_test))\
+\
+#svm\
+clf_svm = svm.SVC()\
+clf_svm.fit(X_train, Y_train)\
+print (clf_svm.score(X_test, Y_test))\
+\
+\
+#recommend 5 users \
+no = []\
+recommend = \{\}\
+for target in jacbyfollow.keys():\
+    all_others = list(jacbyfollow[target].keys())\
+    XX=[]\
+    for other in jacbyfollow[target].keys():\
+        XX.append([jacbyfollow[target][other],jacbyinterest[target][other]])\
+    prediction=list(clf_nn.predict_proba(np.array(XX)))\
+    for i in range(len(prediction)):\
+        if prediction[i][0]<0.5:\
+            no.append([target,i])\
+    prob= [item[0] for item in prediction]\
+    score = [item for item in sorted(zip(prob,all_others),reverse=True)]\
+    recommend[target]=[]\
+    i=0\
+    while len(recommend[target])<5 and score[i][0]>0.53:\
+        if target in followeesByUser.keys():\
+            if not(score[i][1] in followeesByUser[target]):\
+                recommend[target].append(score[i][1])\
+        else:\
+            recommend[target].append(score[i][1])\
+        i=i+1\
+\
+recommend_full=recommend\
+for key in recommend_full.keys():\
+    i=0\
+    while len(recommend_full[key])<5:\
+        recommend_full[key].append(celebrity[i][1])\
+        i=i+1\
+}
